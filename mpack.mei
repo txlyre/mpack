@@ -1,0 +1,114 @@
+pack :: string -> [num] -> [byte]
+pack s ns = pack' [] [] isLittleEndian? s ns
+where
+  pack' b _ _ [] _ = b
+  pack' b _ _ _ [] = b
+  pack' b d le (c:cs) (ns' = (n:ns)) = if isSpace? c then
+                                         pack' b d le cs ns'
+                                       else if isDigit? c then
+                                         pack' b (d <: c) le cs ns'
+                                       else if "=<>" ? c then
+                                         pack' b [] le' cs ns'
+                                       else if c == 'x' then
+                                         pack' (b <: B0) [] le (replicate (pred k') 'x' ++ cs) ns'
+                                       else
+                                         if not $ empty? d then
+                                           pack' (b ++ (concatMap (packer' le) $ take k' ns')) [] le cs (drop k' ns')
+                                         else
+                                           pack' (b ++ packer' le n) [] le cs ns
+  where
+    k' = if not $ empty? d then
+           parseInt d
+         else 1
+
+    le' = case c of
+            '=' -> isLittleEndian?
+          | '<' -> True
+          | '>' -> False
+
+    packer' = case c of
+                'h' -> packShort
+              | 'H' -> packUShort
+              | 'i' -> packInt
+              | 'I' -> packUInt
+              | 'l' -> packLong
+              | 'L' -> packULong
+              | 'q' -> packLongLong
+              | 'Q' -> packULongLong
+              | 'f' -> packFloat
+              | 'd' -> packDouble
+              | 'b' -> (_ -> n -> [intToByte n])
+              | _ -> (_ -> _ -> [])
+
+unpack :: string -> [byte] -> [num]
+unpack s bs = unpack' [] [] isLittleEndian? s bs
+where
+  unpack' b _ _ [] _ = b
+  unpack' b _ _ _ [] = b
+  unpack' b d le (c:cs) bs = if isSpace? c then
+                               unpack' b d le cs bs
+                             else if isDigit? c then
+                               unpack' b (d <: c) le cs bs
+                             else if "=<>" ? c then
+                               unpack' b [] le' cs bs
+                             else if c == 'x' then
+                               unpack' b [] le cs (drop z' bs)
+                             else
+                               unpack' (b ++ (map (unpacker' le) $ chunksOf size' $ take z' bs)) [] le cs $ drop z' bs
+  where
+    z' = if not $ empty? d then
+           size' * parseInt d
+         else size'
+ 
+    le' = case c of
+            '=' -> isLittleEndian?
+          | '<' -> True
+          | '>' -> False
+
+    unpacker' = case c of
+                  'h' -> unpackShort
+                | 'H' -> unpackUShort
+                | 'i' -> unpackInt
+                | 'I' -> unpackUInt
+                | 'l' -> unpackLong
+                | 'L' -> unpackULong
+                | 'q' -> unpackLongLong
+                | 'Q' -> unpackULongLong
+                | 'f' -> unpackFloat
+                | 'd' -> unpackDouble
+                | _ -> (_ -> n -> byteToInt $ head n)
+
+    size' = if "xb" ? c then
+              1
+            else if "hH" ? c then
+              2
+            else if "iIlLf" ? c then
+              4
+            else if "qQd" ? c then
+              8
+            else 1
+
+calcsize :: string -> int
+calcsize s = calcsize' [] 0 s
+where
+  calcsize' _ k [] = k
+  calcsize' d k (c:cs) = if isDigit? c then
+                           calcsize' (d <: c) k cs
+                         else
+                           calcsize' [] (k + size' * k') cs
+  where
+    k' = if not $ empty? d then
+           parseInt d
+         else 1
+
+    size' = if "xb" ? c then
+              1
+            else if "hH" ? c then
+              2
+            else if "iIlLf" ? c then
+              4
+            else if "qQd" ? c then
+              8
+            else if "=<>" ? c then
+              0
+            else 1
