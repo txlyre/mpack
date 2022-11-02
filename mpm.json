@@ -1,0 +1,7 @@
+{
+  "name": "mpack",
+  "author": "txlyre",
+  "description": "Simple pack/unpack implementation.",
+  "version": "0.1",
+  "dependencies": []
+}
